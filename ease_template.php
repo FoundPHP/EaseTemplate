@@ -1,17 +1,17 @@
 <?php
-/*	(C)2005-2020 FoundPHP Framework.
+/*	(C)2005-2021 FoundPHP Framework.
 *	   name: Ease Template
 *	 weburl: http://www.FoundPHP.com
 * 	   mail: master@FoundPHP.com
 *	 author: 孟大川
-*	version: 1.20.1215
-*	  start: 2005-05-24
-*	 update: 2020-12-15
+*	version: 1.21.34
+*	  start: 2013-02-19
+*	 update: 2021-03-04
 *	support: >=PHP5.4,PHP7,PHP8
 *	payment: Free 免费
 *	This is not a freeware, use is subject to license terms.
 *	此软件为授权使用软件，请参考软件协议。
-*	http://www.FoundPHP.com/agreement
+*	http://www.foundphp.com/?m=agreement
 Relation:
 ease_template.php, ease_template_mime.php, language/et_en.php
 */
@@ -25,7 +25,7 @@ class FoundPHP_template{
 	public $ThisValue	= array();			//当前数值
 	public $FileList	= array();			//载入文件列表
 	public $IncList		= array();			//引入文件列表
-	public $ImgDir		= array('images');	//图片地址目录
+	public $ImgDir		= array('images','assets');	//图片地址目录
 	public $HtmDir		= 'cache_htm/';		//静态存放的目录
 	public $HtmID		= '';				//静态文件ID
 	public $HtmTime		= '180';			//秒为单位，默认三分钟
@@ -44,6 +44,8 @@ class FoundPHP_template{
 	public $curl_pem	= array();			//证书文件
 	public $curl_age	= 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36 FoundPHP Browser/2.1';
 	public $curl_request= 'GET';
+	public $get_dir_ext	= array(); 			//格式：array('php','htm');
+	public $get_dir_num	= 0; 				//目录深度：0不限制，2表示目录2级深度
 	private $lang		= array(
 		'not_exist1'	=> '抱歉,',
 		'not_exist2'	=> '文件名错误或是文件不存在。',
@@ -89,19 +91,19 @@ class FoundPHP_template{
 	*/
 	function __construct(
 		$set = array(
-				'ID'		 =>'1',					//缓存ID
+				'ID'		 =>1,					//缓存ID
 				'TplType'	 =>'htm',				//模板格式
 				'CacheDir'	 =>'cache',				//缓存目录
 				'TemplateDir'=>'template',			//模板存放目录
-				'AutoImage'	 =>'on',				//自动解析图片目录开关 on表示开放 off表示关闭
+				'AutoImage'	 =>1,				//自动解析图片目录开关 on表示开放 off表示关闭
 				'LangDir'	 =>'language',			//语言文件存放的目录
 				'Language'	 =>'default',			//语言的默认文件
-				'Copyright'	 =>'off',				//版权保护
+				'Copyright'	 =>0,				//版权保护
 				'MemCache'	 =>'',					//Memcache服务器地址例如:127.0.0.1:11211
-				'Compress'	 =>'off',				//压缩代码
+				'Compress'	 =>0,				//压缩代码
 				'WebURL'	 =>'',					//如果采用路由模式请设定真实网站地址
-				'Rewrite'	 =>'off',				//是否开启地址重写的静态方式
-				'StartTime'	 =>'on',				//启用执行时间计算
+				'Rewrite'	 =>0,				//是否开启地址重写的静态方式
+				'StartTime'	 =>1,				//启用执行时间计算
 			)
 		){
 		
@@ -118,7 +120,7 @@ class FoundPHP_template{
 			$this->Copyright= 1;
 			if (!is_writable($set['CacheDir'])){
 				$error		= $this->lang['copyright'];
-				function_exists('found_shutdown')?found_shutdown($error):die($error);
+				function_exists('foundphp_error')?foundphp_error($error):die($error);
 			}
 		}else{
 			$this->Copyright= 0;
@@ -143,7 +145,7 @@ class FoundPHP_template{
 			$path_info 		= explode('/',$_SERVER["PATH_INFO"]);
 			if(count($path_info)>0){
 				$error  = $this->lang['routing'];
-				function_exists('found_shutdown')?found_shutdown($error):die($error);
+				function_exists('foundphp_error')?foundphp_error($error):die($error);
 			}
 		}
 		
@@ -174,11 +176,11 @@ class FoundPHP_template{
 			$this->RunType		= 'MemCache';
 			if(!function_exists('memcache_connect')){
 				$error			= $this->lang['memcache'];
-				function_exists('found_shutdown')?found_shutdown($error):die($error);
+				function_exists('foundphp_error')?foundphp_error($error):die($error);
 			}
 			$memset				= explode(":",$set['MemCache']);
 			
-			$this->Emc			= @memcache_connect($memset['0'], $memset['1']) OR (function_exists('found_shutdown')?found_shutdown($error):die($error));
+			$this->Emc			= @memcache_connect($memset['0'], $memset['1']) OR (function_exists('foundphp_error')?foundphp_error($error):die($error));
 		}else{
 	  	 	$this->RunType		= (@substr(@sprintf('%o', @fileperms($this->CacheDir)), -3)==777 && is_dir($this->CacheDir))?'Cache':'Replace';
 		}
@@ -221,7 +223,7 @@ class FoundPHP_template{
 		$this->IncFile[$FileName]		 = $this->FileDir[$this->ThisFile].$this->ThisFile;
 		if(!is_file($this->IncFile[$FileName]) && $this->Copyright==0){
 			$error	= $this->lang['not_exist1'].$this->IncFile[$FileName].$this->lang['not_exist2'];
-			function_exists('found_shutdown')?found_shutdown($error):die($error);
+			function_exists('foundphp_error')?foundphp_error($error):die($error);
 		}
 		
 		//bug 系统
@@ -256,7 +258,7 @@ class FoundPHP_template{
 			$ShowTPL = '';
 			//解析续载
 			if (@is_array($FileList) && $FileList!='include_page'){
-				foreach ($FileList AS $K=>$V) {
+				foreach ($FileList AS $K=>$V){
 					$read_file= FoundPHP_template::reader($V.$K);
 					$ShowTPL .= FoundPHP_template::ImgCheck($read_file, $V.$K);
 				}
@@ -266,7 +268,7 @@ class FoundPHP_template{
 				
 				if(!is_file($SourceFile) && $this->Copyright==0){
 					$error	= $this->lang['not_exist1'].$SourceFile.$this->lang['not_exist2'];
-					function_exists('found_shutdown')?found_shutdown($error):die($error);
+					function_exists('foundphp_error')?foundphp_error($error):die($error);
 				}
 				$ShowTPL = FoundPHP_template::ImgCheck($this->reader($SourceFile) ,$SourceFile);
 			}
@@ -336,10 +338,10 @@ class FoundPHP_template{
 			//内部执行
 			$ShowTPL = preg_replace_callback(array('/(\{\s*)(run\:)(.+?)(\s*\})/is'),function ($m=''){
 				$m['3'] = preg_replace_callback(array('/(\$[a-zA-Z0-9\_]+\[[\$\-\>a-zA-Z0-9\_\'"\[\]]+\]+)/'),function ($m=''){
-					return $GLOBALS['tpl']->fix_php7($m['1']);
+					return FoundPHP_template::fix_php7($m['1']);
 				},$m['3']);
 				$m['3'] = preg_replace_callback(array('/(\$[a-zA-Z0-9\_]+\[[\$\-\>a-zA-Z0-9\_\'"\[\]]+\]+\[[\$\-\>a-zA-Z0-9\_\'"\[\]]+\])/'),function ($m=''){
-					return $GLOBALS['tpl']->fix_php7($m['1']);
+					return FoundPHP_template::fix_php7($m['1']);
 				},$m['3']);
 				$m['3']	= str_replace("\'","'",$m['3']);
 			 return "(T_T)".$m['3'].";(T_T!)";},$ShowTPL);
@@ -350,12 +352,12 @@ class FoundPHP_template{
 			$ShowTPL = preg_replace_callback('/<!--\s*DEL\s*-->/is',function ($m=''){return "';if(@\$ET_Del!=''){\$_ET.='";},$ShowTPL);
 			$ShowTPL = preg_replace_callback('/<!--\s*IF\s*[\(|\[](.+?)[\)|\]]\s*-->/is',function ($m=''){return "';if(".FoundPHP_template::FixOther($m['1'])."){\$_ET.='";},$ShowTPL);
 			$ShowTPL = preg_replace_callback('/<!--\s*ELSEIF\s*[\(|\[](.+?)[\)|\]]\s*-->/is',function ($m=''){return "';}elseif(".FoundPHP_template::FixOther($m['1'])."){\$_ET.='";},$ShowTPL);
-			
 			$ShowTPL = preg_replace_callback('/<!--\s*ELSE\s*-->/is',function ($m=''){return "';}else{\$_ET.='";},$ShowTPL);
 			$ShowTPL = preg_replace_callback('/<!--\s*END\s*-->/is',function ($m=''){return "';}\$_ET.='";},$ShowTPL);
 			//循环
 			$ShowTPL = preg_replace_callback('/<!--\s*([a-zA-Z0-9_\[\]\$\'\\\"]{1,100}|[a-zA-Z0-9_\[\]]{1,100}\->[a-zA-Z0-9_[\]\$\'\\\"\->\(\)\;]{1,100})\s*( [ASas]{2} )\s*(.+?)\s*-->/',function ($m=''){return "';\$_i=0;foreach((array)".FoundPHP_template::FixOther($m['1'])." AS ".$m['3']."){\$_i++;\$_ET.='";},$ShowTPL);
 			$ShowTPL = preg_replace_callback('/<!--\s*while\:\s*(.+?)\s*-->/is',function ($m=''){return "';\$_i=0;while(".FoundPHP_template::FixOther($m['1'])."){\$_i++;\$_ET.='";},$ShowTPL);
+			$ShowTPL = preg_replace_callback('/<!--\s*([a-zA-Z0-9_\[\]\'\$\\\"=]{4,30})\s*;\s*(.+)\s*;\s*([a-zA-Z0-9_\[\]\$\'\\\"\-\+]{4})\s*-->/',function ($m=''){return "';for(".$m['1'].";".FoundPHP_template::FixOther($m['2']).";".$m['3']."){\$_ET.='";},$ShowTPL);
 			//变量
 			$ShowTPL = preg_replace_callback('/\{([a-zA-Z0-9_\[\]\$\'\\\"]{1,40}|[a-zA-Z0-9_\[\]]{1,40}\->[a-zA-Z0-9_[\]\$\'\\\"\->\(\)\;]{1,40})\}/',function ($m=''){
 							$first		= substr($m['1'],0,1);
@@ -416,8 +418,8 @@ class FoundPHP_template{
 				//MemCache 编译
 				case'':
 					$error	= $this->lang['mc_save'];
-					function_exists('found_shutdown')?found_shutdown($error):die($error);
-					memcache_set($this->Emc,$this->ThisFile.'_date', time()) OR (function_exists('found_shutdown')?found_shutdown($error):die($error));
+					function_exists('foundphp_error')?foundphp_error($error):die($error);
+					memcache_set($this->Emc,$this->ThisFile.'_date', time()) OR (function_exists('foundphp_error')?foundphp_error($error):die($error));
 					memcache_set($this->Emc,$this->ThisFile, $ShowTPL) OR $error($this->lang['mc_save']);
 				break;
 			}
@@ -439,7 +441,7 @@ class FoundPHP_template{
 			//错误检查
 			if(strlen($content)<=0){
 				$error	= $this->lang['not_exist3'].$SourceFile;
-				function_exists('found_shutdown')?found_shutdown($error):die($error);
+				function_exists('foundphp_error')?foundphp_error($error):die($error);
 			}
 		return $content;
 	}
@@ -546,7 +548,7 @@ class FoundPHP_template{
 							include $CacheFile;
 							//获得引用列表
 							if(is_array($EaseTemplate3_inc)){
-								foreach ($EaseTemplate3_inc AS $K=>$V) {
+								foreach ($EaseTemplate3_inc AS $K=>$V){
 									if(@filemtime($K)>@filemtime($V)) $update = 1;
 								}
 							}
@@ -734,7 +736,7 @@ class FoundPHP_template{
 			unset($k,$v);
 			$update		= 0;
 			$settime	= ($settime>0)?$settime:@filemtime($filname);
-			foreach ($this->IncFile AS $k=>$v) {
+			foreach ($this->IncFile AS $k=>$v){
 				if (@filemtime($v)>$settime){$update = 1;}
 			}
 			//更新缓存
@@ -754,7 +756,7 @@ class FoundPHP_template{
 	//函数名: compress_js
 	//参数: $string
 	//返回值: 压缩后的$string
-	function compress_js($str) {
+	function compress_js($str){
 		$str = preg_replace_callback(array('/(\/\/.*\r\n)/',"/\s(?=\s)/"),function ($m=''){return "";},$str);
 			$search		= array('var','\"',"\r\n","\t"," = ","; ","  ","if (",") ",", ","} else {","{ ","} ");
 			$replace		= array('var ','"','','','=',";"," ","if(",")",",","}else{","{","}");
@@ -765,7 +767,7 @@ class FoundPHP_template{
 	//函数名: compress_html
 	//参数: $string
 	//返回值: 压缩后的$string
-	function compress_html($str) {
+	function compress_html($str){
 		$str = preg_replace_callback("/(<script.+?<\/script>)/is",array($this,'replace_compress'),$str);
 		$str = preg_replace_callback(array('~>\s+\n~','~>\s+\r~'),function ($m=''){return ">";},$str);
 		$str = preg_replace_callback(array('~>\s+<~'),function ($m=''){return "><";},$str);
@@ -901,7 +903,7 @@ class FoundPHP_template{
 	*	获得所有设置与公共变量
 	*/
 	function Value(){
-		return (is_array($this->ThisValue))?array_merge($this->ThisValue,$GLOBALS):$GLOBALS;
+		return (is_array($this->ThisValue))?@array_merge($this->ThisValue,$GLOBALS):$GLOBALS;
 	}
 	
 	/*
@@ -1106,11 +1108,11 @@ class FoundPHP_template{
 		$purl	= parse_url($url_ex['0']);
 		if (!strstr($url_ex['0'],'://')){
 			$error	= $this->lang['curl_link'];
-			function_exists('found_shutdown')?found_shutdown($error):die($error);
+			function_exists('foundphp_error')?foundphp_error($error):die($error);
 		}
 		if (!function_exists('curl_init')){
 			$error	= $this->lang['curl_init'];
-			function_exists('found_shutdown')?found_shutdown($error):die($error);
+			function_exists('foundphp_error')?foundphp_error($error):die($error);
 		}
 		
 		$curl	= curl_init();
@@ -1119,7 +1121,7 @@ class FoundPHP_template{
 		if ($this->curl_cookie){
 			$set_cookie					= '';
 			if (is_array($this->curl_cookie)){
-				foreach($this->curl_cookie AS $k=>$v) {
+				foreach($this->curl_cookie AS $k=>$v){
 					$set_cookie		.= $k.'='.$v.'; ';
 				}
 			}else{
@@ -1159,18 +1161,18 @@ class FoundPHP_template{
 			
 			if ($post && !is_array($post)){
 				$error	= $this->lang['curl_text'];
-				function_exists('found_shutdown')?found_shutdown($error):die($error);
+				function_exists('foundphp_error')?foundphp_error($error):die($error);
 			}
 			
 			$array_depth	= FoundPHP_template::array_depth($post);
 			if ($array_depth>1){
 				$error	= $this->lang['curl_file'];
-				function_exists('found_shutdown')?found_shutdown($error):die($error);
+				function_exists('foundphp_error')?foundphp_error($error):die($error);
 			}
 			//php5.5以上
-			if (class_exists('CURLFile')) {
+			if (class_exists('CURLFile')){
 				curl_setopt($curl, CURLOPT_SAFE_UPLOAD, true);
-				if(@function_exists('mime_content_type')) {
+				if(@function_exists('mime_content_type')){
 					$file_mime	= mime_content_type($this->curl_file['file']);
 				}else{
 					$ext		= strtolower(pathinfo($this->curl_file['file'],PATHINFO_EXTENSION));
@@ -1181,7 +1183,7 @@ class FoundPHP_template{
 				
 				$file_data[$this->curl_file['name']] = new CurlFile(realpath($this->curl_file['file']),$file_mime,$file_info['basename']);
 			} else {
-				if (defined('CURLOPT_SAFE_UPLOAD')) {
+				if (defined('CURLOPT_SAFE_UPLOAD')){
 					curl_setopt($curl, CURLOPT_SAFE_UPLOAD, false);
 				}
 				$file_data[$this->curl_file['name']] = '@'.realpath($this->curl_file['file']);
@@ -1243,7 +1245,7 @@ class FoundPHP_template{
 			if ($this->curl_pem){
 				if (!is_file($this->curl_pem)){
 					$error		= $this->lang['curl_pem'];
-					function_exists('found_shutdown')?found_shutdown($error):die($error);
+					function_exists('foundphp_error')?foundphp_error($error):die($error);
 				}
 				curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, TRUE);
 				curl_setopt($curl, CURLOPT_CAINFO, $this->curl_pem);
@@ -1313,13 +1315,17 @@ class FoundPHP_template{
 	*	reader(文件名);
 	*/
 	function reader(
-				$filename
+				$filename=''
 			){
-		$handle = @fopen($filename, "r");
-		$data = @fread($handle, filesize($filename));
-		@fclose($handle);
-		return $data;
-		//return @file_get_contents($filename);
+		if (is_file($filename)){
+			$handle	= @fopen($filename, "r");
+			$size	= filesize($filename);
+			if (!empty($size)){
+			$data	= @fread($handle,$size);
+			}
+			@fclose($handle);
+			return $data;
+		}
 	}
 	
 	/*
@@ -1332,42 +1338,80 @@ class FoundPHP_template{
 				$mode='w'
 			){
 		if(trim($filename)){
+			$dirs	= dirname($filename);
+			if (!is_dir($dirs)){
+				$this->mk_dir($dirs);
+			}
 			$file = @fopen($filename, $mode);
 			@fwrite($file, $data);
 			@fclose($file);
 			if(!is_file($filename)){
 				$error	= $filename.$this->lang['not_write'];
-				die($error);
+				function_exists('foundphp_error')?foundphp_error($error):die($error);
 			}
 		}
 	}
 	
 	/*
 	*	获取目录
-	*	get_dir('data/cache/test/pic/go');
-		dir		设置访问目录
-		type	0获取文件夹，1获取文件
+	*	$tpl->get_dir('data',$get_list);
+		print_r($get_list);
 	*/
-	function get_dir($dir,$type=0){
-		$result = array();
-		$dir	.= (substr($dir,-1)=='/'?'':'/');
-		$handle	= opendir($dir);
-		while(false!=($f=readdir($handle))){
-			//列出所有文件夹及文件
-			if($f!='.'&&$f!='..'){
-				switch($type){
-					case 1:	//文件
-						if (is_file($dir.$f)){$result[$f]	= $dir.$f;}
-					break;
-					case 2:	//文件夹
-						if (is_dir($dir.$f)){$result[$f]	= $dir.$f;}
-					break;
-					default:
-						$result[$f]	= $dir.$f;
+	function get_dir($path, &$ary){
+		$dir_handle	= scandir($path);
+		foreach ($dir_handle as $file){
+			$files	= $path.'/'.$file;
+			$files	= str_replace('./','',$files);
+			if ($file!="." && $file!=".."){
+				if (count($this->get_dir_ext)>0){
+					$ext			= pathinfo(strtolower($files),PATHINFO_EXTENSION);
+					if ($this->get_dir_num>0){
+						$file_num	= explode('/',dirname($files));
+						if (count($file_num)<=$this->get_dir_num){
+							if (in_array($ext,$this->get_dir_ext)){
+								$ary[$files] = $this->get_file($files);
+							}
+						}
+					}else{
+						if (in_array($ext,$this->get_dir_ext)){
+							$ary[$files] = $this->get_file($files);
+						}
+					}
+				}else {
+					$ary[$files] = $this->get_file($files);
 				}
 			}
+			if (is_dir($files) && $file!="." && $file!=".."){
+				$this->get_dir($files,$ary);
+			}
 		}
-		return $result;
+	}
+	
+	/*
+	*	获取文件或目录尺寸与权限
+	*	$tpl->get_file('index.php');
+	*/
+	function get_file($files=''){
+		if (!empty($files)){
+			$result =  array(
+					'name'	=> basename($files),
+					'dir'	=> str_replace('./','',dirname($files).'/'),
+					'size'	=> filesize($files),
+					'chmod'	=> substr(sprintf('%o', fileperms($files)), -4),
+					'type'	=> 'file',
+				);
+			$ext	= pathinfo(strtolower($files),PATHINFO_EXTENSION);
+			if (!empty($ext)){
+				$result['ext']	= $ext;
+			}
+			if (is_dir($files)){
+				$result['type']	= 'folder';
+				$result['dir']	= $files.'/';
+			}
+			$depth				= explode('/',dirname($files));
+			$result['depth']	= (empty($result['dir']))?0:count($depth);
+			return $result;
+		}
 	}
 	
 	/*
@@ -1376,17 +1420,17 @@ class FoundPHP_template{
 		mod			目录权限
 	*	mk_dir('data/cache/test/pic/go');
 	*/
-	function mk_dir($dirs='',$mod=0777) {
+	function mk_dir($dirs='',$mod=0777){
 		$falg = true;
 		$dirs  = trim($dirs);
 		if($dirs!=''){
 			$dirs = str_replace(array('//','\\','\\\\'),'/',$dirs);
-			if (!is_dir($dirs)) {
+			if (!is_dir($dirs)){
 				$temp = explode('/',$dirs);
 				$cur_dir = '';
 				for($i=0;$i<count($temp);$i++){
 					$cur_dir .= $temp[$i].'/';
-					if (!@is_dir($cur_dir)) {
+					if (!@is_dir($cur_dir)){
 						if(@mkdir($cur_dir,$mod)){
 							chmod($cur_dir,$mod);
 						}else{
@@ -1403,7 +1447,7 @@ class FoundPHP_template{
 	*	删除目录及目录下所有文件
 	*	del_dir(删除的路径,1表示删除目录下数据，0默认删除本目录);
 	*/
-	function del_dir($dir_adds='',$del_def=0) {
+	function del_dir($dir_adds='',$del_def=0){
 		$result		= false;
 		$dir_adds	= str_replace('\\','/',$dir_adds);
 		if(! is_dir($dir_adds)){
@@ -1411,7 +1455,7 @@ class FoundPHP_template{
 		}
 		$handle = opendir($dir_adds);
 		while(($file = readdir($handle)) !== false){
-			if($file != '.' && $file != '..') {
+			if($file != '.' && $file != '..'){
 				$dir = $dir_adds . DIRECTORY_SEPARATOR . $file;
 				is_dir($dir) ? FoundPHP_template::del_dir($dir) : unlink($dir);
 			}
@@ -1442,8 +1486,8 @@ class FoundPHP_template{
 	/*
 	*   获取当前内存占用率用于分析程序效率
 	*/
-	function memory() {
-		if(function_exists('memory_get_usage') ) {
+	function memory(){
+		if(function_exists('memory_get_usage') ){
 			$mem_size	= memory_get_usage();
 			return ($mem_size < 1048576)?round($mem_size/1024,2)." kb":round($mem_size/1048576,2)." mb";
 		}else {
@@ -1532,7 +1576,7 @@ $result.= '</td></tr><tr><td colspan="2" bgcolor="#F7F7F7"><table border="0" wid
 <tr><td'.$sf13.'>'.$this->lang['format'].' <b>'.$this->Ext.'</b></td>
 <td'.$sf13.'>'.$this->lang['memory'].' <b>'.FoundPHP_template::memory().'</b></td>
 <td'.$sf13.'>'.$this->lang['run_time'].' <b>'.($this->start_time>0?FoundPHP_template::run_time().$this->lang['second']:$this->lang['run_error']).'</b></td>
-<td'.$sf13.'>'.$this->lang['support'].' <b><a href="http://et.systn.com" target="_blank"><font color="#666666">ET.FoundPHP.com</font></a></b></td>
+<td'.$sf13.'>'.$this->lang['support'].' <b><a href="http://et.FoundPHP.com" target="_blank"><font color="#666666">ET.FoundPHP.com</font></a></b></td>
 <td'.$sf13.'></td>
 <td'.$sf13.'></td></tr>
 </table></td></tr>'.implode("",$list_file)."</table><br>";
