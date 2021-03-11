@@ -4,9 +4,9 @@
 *	 weburl: http://www.FoundPHP.com
 * 	   mail: master@FoundPHP.com
 *	 author: 孟大川
-*	version: 1.21.34
+*	version: 1.21.311
 *	  start: 2013-02-19
-*	 update: 2021-03-04
+*	 update: 2021-03-11
 *	support: >=PHP5.4,PHP7,PHP8
 *	payment: Free 免费
 *	This is not a freeware, use is subject to license terms.
