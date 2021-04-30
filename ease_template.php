@@ -4,9 +4,9 @@
 *	 weburl: http://www.FoundPHP.com
 * 	   mail: master@FoundPHP.com
 *	 author: 孟大川
-*	version: 1.21.311
+*	version: 1.21.430
 *	  start: 2013-02-19
-*	 update: 2021-03-11
+*	 update: 2021-04-30
 *	support: >=PHP5.4,PHP7,PHP8
 *	payment: Free 免费
 *	This is not a freeware, use is subject to license terms.
@@ -43,9 +43,10 @@ class FoundPHP_template{
 	public $curl_file	= array();
 	public $curl_pem	= array();			//证书文件
 	public $curl_age	= 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36 FoundPHP Browser/2.1';
-	public $curl_request= 'GET';
+	public $curl_request = 'GET';
 	public $get_dir_ext	= array(); 			//格式：array('php','htm');
-	public $get_dir_num	= 0; 				//目录深度：0不限制，2表示目录2级深度
+	public $get_dir_num = 0; 				//目录深度：0不限制，2表示目录2级深度
+	public $file_base	= 0;
 	private $lang		= array(
 		'not_exist1'	=> '抱歉,',
 		'not_exist2'	=> '文件名错误或是文件不存在。',
@@ -617,8 +618,7 @@ class FoundPHP_template{
 		if (getcwd()=='/'){
 			$this->LangDir = $_SERVER['DOCUMENT_ROOT'].'/'.$this->LangDir;
 		}
-		
-		if (is_dir($this->LangDir)){
+		if (@is_dir($this->LangDir)){
 			$str	= trim($str);
 			//采用MD5效验
 			$id 	= md5($str);
@@ -1356,6 +1356,7 @@ class FoundPHP_template{
 	
 	/*
 	*	获取目录
+	*	$tpl->file_base = 1;		//显示基本文件名
 	*	$tpl->get_dir('data',$get_list);
 		print_r($get_list);
 	*/
@@ -1364,6 +1365,7 @@ class FoundPHP_template{
 		foreach ($dir_handle as $file){
 			$files	= $path.'/'.$file;
 			$files	= str_replace('./','',$files);
+			$files	= str_replace('//','/',$files);
 			if ($file!="." && $file!=".."){
 				if (count($this->get_dir_ext)>0){
 					$ext			= pathinfo(strtolower($files),PATHINFO_EXTENSION);
@@ -1394,13 +1396,17 @@ class FoundPHP_template{
 	*	$tpl->get_file('index.php');
 	*/
 	function get_file($files=''){
+		if($this->file_base==1){
+			return basename($files);
+		}
 		if (!empty($files)){
 			$result =  array(
-					'name'	=> basename($files),
-					'dir'	=> str_replace('./','',dirname($files).'/'),
-					'size'	=> filesize($files),
+					'name'		=> basename($files),
+					'dir'		=> str_replace('./','',dirname($files).'/'),
+					'size'		=> filesize($files),
+					'time'		=> filemtime($files),
 					'chmod'	=> substr(sprintf('%o', fileperms($files)), -4),
-					'type'	=> 'file',
+					'type'		=> 'file',
 				);
 			$ext	= pathinfo(strtolower($files),PATHINFO_EXTENSION);
 			if (!empty($ext)){
