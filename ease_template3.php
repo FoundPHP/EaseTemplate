@@ -170,22 +170,25 @@ class FoundPHP_template{
 	*	设置模板文件
 	*	set_file(文件名,设置目录);
 	*/
-	public function set_file(
+	function set_file(
 				$FileName,
-				$NewDir = ''
+				$NewDir = '',
+				$Path=0
 			){
 		//当前模板名
 		$this->ThisFile  = $FileName.'.'.$this->Ext;
-
 		//目录地址检测
 		if(trim($NewDir) != ''){
-			$this->FileDir[$this->ThisFile] = strstr($NewDir.'/',$this->TemplateDir)?$NewDir.'/':$this->TemplateDir.$NewDir.'/';
+			//指定非设定的模板目录
+			if($Path==1){
+				$this->FileDir[$this->ThisFile] = $NewDir.'/';
+			}else{
+				$this->FileDir[$this->ThisFile] = strstr($NewDir.'/',$this->TemplateDir)?$NewDir.'/':$this->TemplateDir.$NewDir.'/';
+			}
 		}else {
 			$this->FileDir[$this->ThisFile] = $this->TemplateDir;
 		}
-		
 		$this->IncFile[$FileName]		 = $this->FileDir[$this->ThisFile].$this->ThisFile;
-		
 		if(!is_file($this->IncFile[$FileName]) && $this->Copyright==1){
 			die(ET_E_not_exist1.$this->IncFile[$FileName].ET_E_not_exist2);
 		}
