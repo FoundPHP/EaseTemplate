@@ -48,10 +48,10 @@ class FoundPHP_template{
 	public $get_dir_num = 0; 				//目录深度：0不限制，2表示目录2级深度
 	public $file_base	= 0;
 	private $lang		= array(
-		'not_exist1'	=> '抱歉,',
-		'not_exist2'	=> '文件名错误或是文件不存在。',
-		'not_exist3'	=> '<br>抱歉,模板语法错误不能执行。',
-		'unconnect'		=> '抱歉,MemCache 不能连接!',
+		'not_exist1'		=> '抱歉,',
+		'not_exist2'		=> '文件名错误或是文件不存在。',
+		'not_exist3'		=> '<br>抱歉,模板语法错误不能执行。',
+		'unconnect'	=> '抱歉,MemCache 不能连接!',
 		'copyright'		=> '版权模式只有Cache模式下可以开启',
 		'version'		=> '抱歉,请使用php 5.4或以上版本运行ET引擎。',
 		'mc_save'		=> '无法存储到memchache服务器。',
@@ -73,11 +73,11 @@ class FoundPHP_template{
 		'support'		=> '技术支持:',
 		'cache_del'		=> '缓存文件删除成功。\n页面即将刷新。',
 		'routing'		=> '采用路由模式后，您的配置文件必须设置WebURL网站真实地址。<br>例如: $tpl = new template( array( "WebURL" => "http://www.FoundPHP.com/" ) );',
-		'memcache'		=> '请修改 php.ini 中增加 memcache 模块',
+		'memcache'	=> '请修改 php.ini 中增加 memcache 模块',
 		'error'			=> 'Ease Template 错误: ',
-		'error_file'	=> '错误文件: ',
-		'error_line'	=> '错误行号: ',
-		'error_info'	=> '错误信息: ',
+		'error_file'		=> '错误文件: ',
+		'error_line'		=> '错误行号: ',
+		'error_info'		=> '错误信息: ',
 		'error_code'	=> '错误代码: ',
 		'curl_link'		=> '抱歉,请输入正确URL地址',
 		'modify_time'	=> '修改: ',
@@ -210,13 +210,19 @@ class FoundPHP_template{
 	*/
 	function set_file(
 				$FileName,
-				$NewDir = ''
+				$NewDir = '',
+				$Path=0
 			){
 		//当前模板名
 		$this->ThisFile  = $FileName.'.'.$this->Ext;
 		//目录地址检测
 		if(trim($NewDir) != ''){
-			$this->FileDir[$this->ThisFile] = strstr($NewDir.'/',$this->TemplateDir)?$NewDir.'/':$this->TemplateDir.$NewDir.'/';
+			//指定非设定的模板目录
+			if($Path==1){
+				$this->FileDir[$this->ThisFile] = $NewDir.'/';
+			}else{
+				$this->FileDir[$this->ThisFile] = strstr($NewDir.'/',$this->TemplateDir)?$NewDir.'/':$this->TemplateDir.$NewDir.'/';
+			}
 		}else {
 			$this->FileDir[$this->ThisFile] = $this->TemplateDir;
 		}
@@ -226,6 +232,10 @@ class FoundPHP_template{
 			$error	= $this->lang['not_exist1'].$this->IncFile[$FileName].$this->lang['not_exist2'];
 			function_exists('foundphp_error')?foundphp_error($error):die($error);
 		}
+		
+		//bug 系统
+		$this->IncList[] = $this->ThisFile;
+	}
 		
 		//bug 系统
 		$this->IncList[] = $this->ThisFile;
@@ -1138,9 +1148,10 @@ class FoundPHP_template{
 		//自定义浏览器
 		$curl_agent	= $this->curl_agent!=''?$this->curl_agent:$this->curl_age;
 		
-		$headers= array(
+		$headers= array(//zh-CN,zh
 			"accept: */*",
 			'Expect: ',
+			"accept-language: en-US,en;q=0.8",
 			"accept-encoding: gzip, deflate",
 			"cache-control: no-cache",
 			"connection: keep-alive",
@@ -1156,7 +1167,6 @@ class FoundPHP_template{
 		if ($set_cookie!=''){
 			$headers[]="cookie: $set_cookie";
 		}
-		
 		//FILES
 		if (is_file($this->curl_file['file']) && $this->curl_file['name']){
 			//数组检测
@@ -1205,7 +1215,6 @@ class FoundPHP_template{
 			$headers[]	= "Content-Type: application/json; charset=utf-8";
 			$headers[]	= 'Content-Length: '.strlen($post);
 		}
-		
 		//定义请求类型
 		if ($post!=''){ $this->curl_request	= "POST";}
 		$this->curl_request		= $this->curl_request=='POST'?'POST':'GET';
@@ -1233,7 +1242,6 @@ class FoundPHP_template{
 					$post_data	= $post;
 				}
 			}
-			
 			if ($file_data){
 				if ($post_data){
 					$post_data[$this->curl_file['name']]	= $file_data[$this->curl_file['name']];
